@@ -1,6 +1,7 @@
 import tkinter.messagebox
 import tkinter.filedialog
 import tkinter
+import csv
 from timetest import *
 
 def test(input_code: str, n_range: int):
@@ -20,7 +21,10 @@ def test(input_code: str, n_range: int):
     test_info.destroy()
     is_save_file = tkinter.messagebox.askyesno("finish", "test was done. do you want to save the result?")
     if is_save_file:
-        tkinter.filedialog.asksaveasfile(mode="w", defaultextension=".csv")
+        with open(tkinter.filedialog.asksaveasfilename(defaultextension=".csv"), "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["test_number", "test_time"])
+        tkinter.messagebox.showinfo("info", "test was saved")
     else:
         tkinter.messagebox.showinfo("info", "test was not saved")
     for i in result:
