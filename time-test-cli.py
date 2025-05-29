@@ -1,5 +1,5 @@
 import csv
-
+import sys
 from timetest import *
 
 def test(input_code: str, n_range: int):
@@ -21,7 +21,15 @@ def test(input_code: str, n_range: int):
         print("not saved")
 print("python code time test program")
 print("code:")
-code = input()
+code_lines = list()
+while True:
+    line = sys.stdin.readline().rstrip('\n')
+    if not line:  # 빈 줄이면 종료
+        break
+    code_lines.append(line)
+
+code = '\n'.join(code_lines)
+
 nRange = input("range: ")
 try:
     test(code, int(nRange))
