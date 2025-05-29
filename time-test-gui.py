@@ -3,7 +3,7 @@ import tkinter.filedialog
 import tkinter
 from timetest import *
 
-def test(code: str, n_range: int):
+def test(input_code: str, n_range: int):
     test_info = tkinter.Toplevel(window)
     test_info.title("test info")
     test_info.geometry("300x200")
@@ -15,7 +15,7 @@ def test(code: str, n_range: int):
     for i in range(n_range):
         test_info_msg.config(text = f"test progress: {i+1}/{n_range}")
         test_info.update()
-        test_result = time_test(code, i)
+        test_result = time_test(input_code, i)
         result.append(test_result)
     test_info.destroy()
     is_save_file = tkinter.messagebox.askyesno("finish", "test was done. do you want to save the result?")
