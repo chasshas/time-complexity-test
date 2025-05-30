@@ -35,3 +35,4 @@ try:
     test(code, int(nRange))
 except ValueError:
     print("error!")
+print()
