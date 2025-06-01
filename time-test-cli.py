@@ -10,15 +10,7 @@ def test(input_code: str, n_range: int):
         result.append(test_result)
     for i in result:
         meta_print(i)
-    is_save = input("do you want to save the result? (y/n)")
-    if is_save == "y":
-        save_loc = input("save location: ")
-        with open(save_loc, "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["test_number", "test_time"])
-        print("saved")
-    else:
-        print("not saved")
+    return result
 print("python code time test program")
 code_number =input("the number of code: ")
 try:
@@ -47,8 +39,19 @@ for i in test_codes:
 
 nRange = input("range: ")
 try:
+    result = list()
     for code in code_lists:
-        test(code, int(nRange))
+        test_result = (code, int(nRange))
+        result.append(test_result)
+    isSaveResult = input("do you want to save the result? (y/n)")
+    if isSaveResult == "y":
+        with open("result.csv", "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["test_number", "test_time"])
+        for i in result:
+            meta_print(i)
+    else:
+        for i in result:
+            meta_print(i)
 except ValueError:
     print("error!")
-print()
