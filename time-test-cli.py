@@ -20,19 +20,35 @@ def test(input_code: str, n_range: int):
     else:
         print("not saved")
 print("python code time test program")
-print("code:")
-code_lines = list()
-while True:
-    line = sys.stdin.readline().rstrip('\n')
-    if not line:  # 빈 줄이면 종료
-        break
-    code_lines.append(line)
+code_number =input("the number of code: ")
+try:
+    test_number = int(code_number)
+except ValueError:
+    print("error!")
+    exit()
 
-code = '\n'.join(code_lines)
+test_codes = list()
+for i in range(test_number):
+    print(f"code{i+1}:")
+    code_lines = list()
+    while True:
+        line = sys.stdin.readline().rstrip('\n')
+        if not line:  # 빈 줄이면 종료
+            break
+        code_lines.append(line)
+    test_codes.append(code_lines)
+
+code_lists = list()
+
+for i in test_codes:
+    code = '\n'.join(i)
+    code_lists.append(code)
+
 
 nRange = input("range: ")
 try:
-    test(code, int(nRange))
+    for code in code_lists:
+        test(code, int(nRange))
 except ValueError:
     print("error!")
 print()
