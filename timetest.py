@@ -2,7 +2,7 @@ import datetime
 import math
 import csv
 
-def constant(n: int, code: str = "k=n+1"):
+def const(n: int, code: str = "k=n+1"):
     exec(code)
 
 def lg(n, base: int = 2, code: str = "k=n+1"):
@@ -68,5 +68,5 @@ def save_benchmark_to_csv(test_list, result, filename='benchmark_results.csv'):
             writer.writerow(row)
 
 def multi(n: int, code: str = "k=n+1"):
-    for i in range(n)
+    for i in range(n):
         exec(code)
