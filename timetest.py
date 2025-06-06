@@ -66,3 +66,7 @@ def save_benchmark_to_csv(test_list, result, filename='benchmark_results.csv'):
             for j in range(len(test_list)):
                 row.append(result[j][i])
             writer.writerow(row)
+
+def multi(n: int, code: str = "k=n+1"):
+    for i in range(n)
+        exec(code)
