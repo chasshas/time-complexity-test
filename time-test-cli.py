@@ -20,7 +20,10 @@ except ValueError:
     exit()
 
 test_codes = list()
+test_list = list()
 for i in range(test_number):
+    input_test_name = input("input code name: ")
+    test_codes.append(input_test_name)
     print(f"code{i+1}:")
     code_lines = list()
     while True:
@@ -37,17 +40,17 @@ for i in test_codes:
     code_lists.append(code)
 
 
-nRange = input("range: ")
+nRange = int(input("range: "))
 try:
     result = list()
     for code in code_lists:
-        test_result = (code, int(nRange))
+        test_result = test(code, nRange)
         result.append(test_result)
     isSaveResult = input("do you want to save the result? (y/n)")
     if isSaveResult == "y":
-        with open("result.csv", "w", newline="") as f:
-            writer = csv.writer(f)
-            writer.writerow(["test_number", "test_time"])
+        save_location = input("input save location: ")
+        save_benchmark_to_csv(test_list, result, save_location)
+        print("saved successfully!")
         for i in result:
             meta_print(i)
     else:
