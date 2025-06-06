@@ -2,28 +2,28 @@ import datetime
 import math
 import csv
 
-def constant(n: int, code: str):
+def constant(n: int, code: str = "k=n+1"):
     exec(code)
 
-def logarithmic(n,base: int, code: str):
+def lg(n, base: int = 2, code: str = "k=n+1"):
     i = 1
     while i < n:
         i *= base
         exec(code)
 
-def linear(n, code: str):
+def linear(n, code: str = "k=n+1"):
     for i in range(n):
         exec(code)
 
-def factorial(n: int, code: str):
+def factorial(n: int, code: str = "k=n+1"):
     for i in range(math.factorial(n)):
         exec(code)
 
-def square(n: int, exp: int, code: str):
+def square(n: int, exp: int = 2, code: str = "k=n+1"):
     for i in range(n**exp):
         exec(code)
 
-def exponential(n: int, base: int, code: str):
+def exponential(n: int, base: int = 2, code: str = "k=n+1"):
     for i in range(base**n):
         exec(code)
 
@@ -34,7 +34,7 @@ def time_test(code: str, n: int)->float:
     start = datetime.datetime.now()
     n=n
     test_list = [i for i in range(n)]
-    exec(code)
+    exec(code, globals(), locals())
     end = datetime.datetime.now()
     result = end-start
     return result.total_seconds()

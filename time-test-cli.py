@@ -18,43 +18,25 @@ try:
 except ValueError:
     print("error!")
     exit()
-
-test_codes = list()
+code_lists = list()
 test_list = list()
 for i in range(test_number):
     input_test_name = input("input code name: ")
-    test_codes.append(input_test_name)
+    test_list.append(input_test_name)
     print(f"code{i+1}:")
-    code_lines = list()
-    while True:
-        line = sys.stdin.readline().rstrip('\n')
-        if not line:  # 빈 줄이면 종료
-            break
-        code_lines.append(line)
-    test_codes.append(code_lines)
-
-code_lists = list()
-
-for i in test_codes:
-    code = '\n'.join(i)
-    code_lists.append(code)
-
+    code_lists.append(input())
 
 nRange = int(input("range: "))
-try:
-    result = list()
-    for code in code_lists:
-        test_result = test(code, nRange)
-        result.append(test_result)
-    isSaveResult = input("do you want to save the result? (y/n)")
-    if isSaveResult == "y":
-        save_location = input("input save location: ")
-        save_benchmark_to_csv(test_list, result, save_location)
-        print("saved successfully!")
-        for i in result:
-            meta_print(i)
-    else:
-        for i in result:
-            meta_print(i)
-except ValueError:
-    print("error!")
+result = list()
+for code in code_lists:
+    test_result = test(code, nRange)
+    result.append(test_result)
+isSaveResult = input("do you want to save the result? (y/n)")
+if isSaveResult == "y":
+    save_location = input("input save location: ")
+    save_benchmark_to_csv(test_list, result, save_location)
+    print("saved successfully!")
+else:
+    for i in result:
+        for j in i:
+            meta_print(j)
