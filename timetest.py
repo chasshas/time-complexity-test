@@ -2,7 +2,7 @@ import datetime
 import math
 import csv
 
-def const(n: int, code: str = "k=n+1"):
+def const(n: int = 1, code: str = "k=n+1"):
     exec(code)
 
 def lg(n, base: int = 2, code: str = "k=n+1"):
