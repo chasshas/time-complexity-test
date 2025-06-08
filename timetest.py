@@ -1,6 +1,7 @@
 import datetime
 import math
 import csv
+import random
 
 def const(n: int = 1, code: str = "k=n+1"):
     exec(code)
@@ -15,15 +16,15 @@ def linear(n, code: str = "k=n+1"):
     for i in range(n):
         exec(code)
 
-def factorial(n: int, code: str = "k=n+1"):
+def factorial(n: int, code: str = "random.random()"):
     for i in range(math.factorial(n)):
         exec(code)
 
-def square(n: int, exp: int = 2, code: str = "k=n+1"):
+def square(n: int, exp: int = 2, code: str = "random.random()"):
     for i in range(n**exp):
         exec(code)
 
-def exponential(n: int, base: int = 2, code: str = "k=n+1"):
+def exponential(n: int, base: int = 2, code: str = "random.random()"):
     for i in range(base**n):
         exec(code)
 
@@ -67,6 +68,6 @@ def save_benchmark_to_csv(test_list, result, filename='benchmark_results.csv'):
                 row.append(result[j][i])
             writer.writerow(row)
 
-def multi(n: int, code: str = "k=n+1"):
+def multi(n: int, code: str = "random.random()"):
     for i in range(n):
         exec(code)
