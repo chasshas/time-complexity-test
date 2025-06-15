@@ -4,7 +4,7 @@ cat << 'EOF' > run_full_benchmark.sh
 echo "🚀 Ryzen 5 5600 Assembly Benchmark - 전체 프로세스"
 echo "=================================================="
 
-# 1. 시스템 최적화
+
 echo "1️⃣ 시스템 최적화 중..."
 sudo systemctl stop xrdp xrdp-sesman 2>/dev/null || true
 echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor > /dev/null
@@ -18,7 +18,7 @@ echo "   온도: $(sensors 2>/dev/null | grep -E 'Tdie|Core 0' | head -1 | grep 
 
 # 3. 벤치마크 생성 (100M iterations)
 echo "3️⃣ 벤치마크 생성 중 (100M iterations)..."
-python3 asm_benchmark_generator.py 100000000
+python3 asm_test_maker.py 100000000
 
 # 4. 빌드
 echo "4️⃣ 빌드 중..."
