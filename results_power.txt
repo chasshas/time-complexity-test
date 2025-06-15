@@ -1,0 +1,33 @@
+Assembly Instruction Benchmark
+Iterations per test: 10000000
+================================
+Testing add... 19615680 cycles (1.96 cycles/op)
+Testing sub... 20436255 cycles (2.04 cycles/op)
+Testing mul... 22832285 cycles (2.28 cycles/op)
+Testing imul... 15797635 cycles (1.58 cycles/op)
+Testing div... 55214530 cycles (5.52 cycles/op)
+Testing mov... 17043600 cycles (1.70 cycles/op)
+Testing cmp... 19713960 cycles (1.97 cycles/op)
+Testing and... 19205445 cycles (1.92 cycles/op)
+Testing or... 19208280 cycles (1.92 cycles/op)
+Testing xor... 19199950 cycles (1.92 cycles/op)
+Testing shl... 19815425 cycles (1.98 cycles/op)
+Testing shr... 17083080 cycles (1.71 cycles/op)
+Testing lea... 20743065 cycles (2.07 cycles/op)
+Testing memory_load... 18438700 cycles (1.84 cycles/op)
+Testing memory_store... 18117120 cycles (1.81 cycles/op)
+0.191117 sec
+Core	CPU	Avg_MHz	Bzy_MHz	PkgWatt
+-	-	372	4417	34.08
+0	0	28	3657	34.10
+0	6	1	3550
+1	1	4	3553
+1	7	3	3563
+2	2	8	3704
+2	8	516	4392
+3	3	3	3548
+3	9	1	3547
+4	4	11	3545
+4	10	0	3542
+5	5	3884	4437
+5	11	6	4187
