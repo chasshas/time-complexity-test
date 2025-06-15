@@ -1,0 +1,467 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <time.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <sys/time.h>
+#include <emmintrin.h>  // SSE2
+#include <immintrin.h>  // AVX
+
+#define ITERATIONS 100000000
+#define WARMUP_ITERATIONS 10000000
+#define ENERGY_MEASUREMENT_DELAY_MS 100
+#define TEST_COUNT 10
+
+// MSR 레지스터 정의 (AMD Ryzen 전력 측정용)
+#define MSR_PWR_UNIT        0xC0010299
+#define MSR_CORE_ENERGY     0xC001029A
+#define MSR_PKG_ENERGY      0xC001029B
+
+typedef struct {
+    char name[64];
+    double avg_cycles;
+    double avg_time_ns;
+    double energy_start;
+    double energy_end;
+    double energy_consumed;
+} test_result_t;
+
+// RDTSC를 이용한 정확한 사이클 측정
+static inline uint64_t rdtsc(void) {
+    uint32_t hi, lo;
+    __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((uint64_t)lo) | (((uint64_t)hi) << 32);
+}
+
+// MSR 읽기 함수
+uint64_t read_msr(int cpu, uint32_t reg) {
+    char path[32];
+    int fd;
+    uint64_t value;
+    
+    snprintf(path, sizeof(path), "/dev/cpu/%d/msr", cpu);
+    fd = open(path, O_RDONLY);
+    if (fd < 0) {
+        return 0; // MSR 접근 실패시 0 반환
+    }
+    
+    if (pread(fd, &value, sizeof(value), reg) != sizeof(value)) {
+        close(fd);
+        return 0;
+    }
+    
+    close(fd);
+    return value;
+}
+
+// 전력 측정 함수 (개선된 버전)
+double get_energy_joules(int cpu) {
+    uint64_t energy_raw = read_msr(cpu, MSR_CORE_ENERGY);
+    uint64_t unit_raw = read_msr(cpu, MSR_PWR_UNIT);
+    
+    if (energy_raw == 0 || unit_raw == 0) {
+        return 0.0; // MSR 접근 불가능
+    }
+    
+    double energy_unit = 1.0 / (1 << ((unit_raw >> 8) & 0x1F));
+    return energy_raw * energy_unit;
+}
+
+// 컴파일러 최적화 방지 함수
+void prevent_optimization(volatile void* ptr) {
+    (void)ptr;
+}
+
+// 더 정확한 에너지 측정을 위한 함수
+double measure_energy_during_test(void (*test_func)(void), int iterations) {
+    double energy_start, energy_end;
+    
+    // 측정 전 잠시 대기
+    usleep(ENERGY_MEASUREMENT_DELAY_MS * 1000);
+    energy_start = get_energy_joules(0);
+    
+    // 테스트 실행
+    for (int i = 0; i < iterations; i++) {
+        test_func();
+    }
+    
+    energy_end = get_energy_joules(0);
+    usleep(ENERGY_MEASUREMENT_DELAY_MS * 1000);
+    
+    return energy_end - energy_start;
+}
+
+// 테스트 함수들
+void test_add_instruction(test_result_t *result) {
+    strcpy(result->name, "ADD (32-bit)");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    volatile uint32_t a = 1, b = 2, c;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile ("addl %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile ("addl %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+}
+
+void test_mul_instruction(test_result_t *result) {
+    strcpy(result->name, "MUL (32-bit)");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    volatile uint32_t a = 123, b = 456, c;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile ("imull %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile ("imull %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+}
+
+void test_div_instruction(test_result_t *result) {
+    strcpy(result->name, "DIV (32-bit)");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    volatile uint32_t a = 1000000, b = 7, c;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile ("movl %1, %%eax; xorl %%edx, %%edx; divl %2; movl %%eax, %0"
+                         : "=r"(c) : "r"(a), "r"(b) : "eax", "edx");
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile ("movl %1, %%eax; xorl %%edx, %%edx; divl %2; movl %%eax, %0"
+                         : "=r"(c) : "r"(a), "r"(b) : "eax", "edx");
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+}
+
+void test_xor_instruction(test_result_t *result) {
+    strcpy(result->name, "XOR (32-bit)");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    volatile uint32_t a = 0xAAAAAAAA, b = 0x55555555, c;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile ("xorl %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile ("xorl %1, %0" : "=r"(c) : "r"(b), "0"(a) : );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+}
+
+void test_mov_instruction(test_result_t *result) {
+    strcpy(result->name, "MOV (register)");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    volatile uint32_t a = 0x12345678, b;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile ("movl %1, %0" : "=r"(b) : "r"(a) : );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile ("movl %1, %0" : "=r"(b) : "r"(a) : );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+}
+
+void test_sse_add_instruction(test_result_t *result) {
+    strcpy(result->name, "SSE2 PADDQ");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    
+    // 메모리에 테스트 데이터 준비
+    uint64_t test_data[4] = {0x1111111111111111ULL, 0x2222222222222222ULL,
+                             0x3333333333333333ULL, 0x4444444444444444ULL};
+    volatile uint64_t dummy_result = 0;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile (
+            "movq %1, %%xmm0\n\t"
+            "movq %2, %%xmm1\n\t"
+            "movq %3, %%xmm2\n\t" 
+            "movq %4, %%xmm3\n\t"
+            "punpcklqdq %%xmm1, %%xmm0\n\t"
+            "punpcklqdq %%xmm3, %%xmm2\n\t"
+            "paddq %%xmm2, %%xmm0\n\t"
+            "movq %%xmm0, %0\n\t"
+            : "=m"(dummy_result)
+            : "m"(test_data[0]), "m"(test_data[1]), "m"(test_data[2]), "m"(test_data[3])
+            : "xmm0", "xmm1", "xmm2", "xmm3", "memory"
+        );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile (
+            "movq %1, %%xmm0\n\t"
+            "movq %2, %%xmm1\n\t"
+            "movq %3, %%xmm2\n\t"
+            "movq %4, %%xmm3\n\t"
+            "punpcklqdq %%xmm1, %%xmm0\n\t"
+            "punpcklqdq %%xmm3, %%xmm2\n\t"
+            "paddq %%xmm2, %%xmm0\n\t"
+            "movq %%xmm0, %0\n\t"
+            : "=m"(dummy_result)
+            : "m"(test_data[0]), "m"(test_data[1]), "m"(test_data[2]), "m"(test_data[3])
+            : "xmm0", "xmm1", "xmm2", "xmm3", "memory"
+        );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+    
+    // 컴파일러 최적화 방지
+    if (dummy_result == 0x123456789ABCDEF0ULL) printf("");
+}
+
+void test_avx_add_instruction(test_result_t *result) {
+    strcpy(result->name, "AVX2 VPADDQ");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    
+    // 메모리에 테스트 데이터 준비 (AVX는 256비트이므로 8개 값)
+    uint64_t test_data_a[4] = {0x1111111111111111ULL, 0x2222222222222222ULL,
+                               0x3333333333333333ULL, 0x4444444444444444ULL};
+    uint64_t test_data_b[4] = {0x5555555555555555ULL, 0x6666666666666666ULL,
+                               0x7777777777777777ULL, 0x8888888888888888ULL};
+    volatile uint64_t dummy_result = 0;
+    
+    // 워밍업
+    for (int i = 0; i < WARMUP_ITERATIONS; i++) {
+        __asm__ volatile (
+            "vmovdqu %1, %%ymm0\n\t"
+            "vmovdqu %2, %%ymm1\n\t"
+            "vpaddq %%ymm1, %%ymm0, %%ymm0\n\t"
+            "vmovq %%xmm0, %0\n\t"
+            "vzeroupper\n\t"
+            : "=m"(dummy_result)
+            : "m"(test_data_a[0]), "m"(test_data_b[0])
+            : "ymm0", "ymm1", "memory"
+        );
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < ITERATIONS; i++) {
+        __asm__ volatile (
+            "vmovdqu %1, %%ymm0\n\t"
+            "vmovdqu %2, %%ymm1\n\t"
+            "vpaddq %%ymm1, %%ymm0, %%ymm0\n\t"
+            "vmovq %%xmm0, %0\n\t"
+            "vzeroupper\n\t"
+            : "=m"(dummy_result)
+            : "m"(test_data_a[0]), "m"(test_data_b[0])
+            : "ymm0", "ymm1", "memory"
+        );
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / ITERATIONS;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / ITERATIONS;
+    result->energy_consumed = result->energy_end - result->energy_start;
+    
+    // 컴파일러 최적화 방지
+    if (dummy_result == 0x123456789ABCDEF0ULL) printf("");
+}
+
+void test_memory_load(test_result_t *result) {
+    strcpy(result->name, "Memory LOAD");
+    
+    uint64_t start_cycles, end_cycles;
+    struct timespec start_time, end_time;
+    
+    // 1MB 배열 생성 (L2 캐시를 넘어서는 크기)
+    volatile uint32_t *array = malloc(1024 * 1024 * sizeof(uint32_t));
+    for (int i = 0; i < 1024 * 1024; i++) {
+        array[i] = i;
+    }
+    
+    volatile uint32_t sum = 0;
+    int iterations = ITERATIONS / 1000; // 메모리 접근은 더 적은 반복
+    
+    // 워밍업
+    for (int i = 0; i < iterations / 10; i++) {
+        sum += array[i % (1024 * 1024)];
+    }
+    
+    result->energy_start = get_energy_joules(0);
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+    start_cycles = rdtsc();
+    
+    for (int i = 0; i < iterations; i++) {
+        sum += array[i % (1024 * 1024)];
+    }
+    
+    end_cycles = rdtsc();
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    result->energy_end = get_energy_joules(0);
+    
+    result->avg_cycles = (double)(end_cycles - start_cycles) / iterations;
+    result->avg_time_ns = ((end_time.tv_sec - start_time.tv_sec) * 1e9 + 
+                          (end_time.tv_nsec - start_time.tv_nsec)) / iterations;
+    result->energy_consumed = result->energy_end - result->energy_start;
+    
+    free((void*)array);
+}
+
+void run_test_suite() {
+    test_result_t results[8];
+    
+    printf("AMD Ryzen 5 5600 Assembly Instruction Performance Test\n");
+    printf("=======================================================\n\n");
+    
+    printf("Testing %d iterations per instruction...\n\n", ITERATIONS);
+    
+    // 각 테스트 실행
+    printf("Running ADD test...\n");
+    test_add_instruction(&results[0]);
+    
+    printf("Running MUL test...\n");
+    test_mul_instruction(&results[1]);
+    
+    printf("Running DIV test...\n");
+    test_div_instruction(&results[2]);
+    
+    printf("Running XOR test...\n");
+    test_xor_instruction(&results[3]);
+    
+    printf("Running MOV test...\n");
+    test_mov_instruction(&results[4]);
+    
+    printf("Running SSE2 test...\n");
+    test_sse_add_instruction(&results[5]);
+    
+    printf("Running AVX2 test...\n");
+    test_avx_add_instruction(&results[6]);
+    
+    printf("Running Memory Load test...\n");
+    test_memory_load(&results[7]);
+    
+    // 결과 출력
+    printf("\nResults:\n");
+    printf("%-20s %12s %12s %12s\n", "Instruction", "Cycles", "Time(ns)", "Energy(J)");
+    printf("--------------------------------------------------------\n");
+    
+    for (int i = 0; i < 8; i++) {
+        printf("%-20s %12.3f %12.3f %12.6f\n", 
+               results[i].name, 
+               results[i].avg_cycles,
+               results[i].avg_time_ns,
+               results[i].energy_consumed);
+    }
+    
+    printf("\nNotes:\n");
+    printf("- Energy measurement requires MSR access (run as root)\n");
+    printf("- Results may vary depending on system load and frequency scaling\n");
+    printf("- Disable CPU frequency scaling for more consistent results\n");
+}
+
+int main() {
+    // CPU 정보 확인
+    system("echo 'CPU Info:' && cat /proc/cpuinfo | grep 'model name' | head -1");
+    printf("\n");
+    
+    run_test_suite();
+    
+    return 0;
+}

@@ -1,0 +1,63 @@
+CPU Info:
+model name	: AMD Ryzen 5 5600 6-Core Processor
+
+AMD Ryzen 5 5600 Comprehensive Assembly Performance Test
+=========================================================
+
+Testing 50000000 iterations per instruction...
+
+Running Basic Arithmetic Instructions...
+Running Logical Instructions...
+Running Shift Instructions...
+Running Basic Instructions...
+Running SSE Instructions...
+Running AVX Instructions...
+Running Bit Manipulation Instructions...
+Running Memory Access Instructions...
+Running Branch Instructions...
+
+Comprehensive Results:
+Instruction                     Cycles     Time(ns)    Energy(J)
+---------------------------------------------------------------------
+ADD (32-bit)                     0.794        0.227     0.012161
+SUB (32-bit)                     0.788        0.226     0.009430
+IMUL (32-bit)                    0.789        0.226     0.009766
+DIV (32-bit)                     4.733        1.355     0.008514
+AND (32-bit)                     0.789        0.226     0.000412
+OR (32-bit)                      0.789        0.226     0.000397
+XOR (32-bit)                     0.789        0.226     0.000397
+SHL (32-bit)                     0.789        0.226     0.000366
+SHR (32-bit)                     0.789        0.226     0.000397
+MOV (register)                   0.789        0.226     0.000381
+CMP (32-bit)                     0.789        0.226     0.000412
+SSE2 PADDQ                       1.580        0.452     0.000748
+SSE ADDPS                        0.789        0.226     0.000412
+SSE MULPS                        1.579        0.452     0.000732
+AVX2 VPADDQ                      0.790        0.226     0.000366
+AVX VADDPS                       0.790        0.226     0.000443
+AVX VMULPS                       1.579        0.452     0.000702
+POPCNT (64-bit)                  0.789        0.226     0.000381
+LZCNT (64-bit)                   1.577        0.451     0.000778
+Memory LOAD (L1)                 2.361        0.676     0.000000
+Memory LOAD (L2)                 2.199        0.630     0.000000
+Memory LOAD (L3)                 2.509        0.719     0.000000
+Memory LOAD (RAM)               47.789       13.712     0.000000
+Branch (taken)                   1.577        0.452     0.000748
+
+Cache Hierarchy Analysis:
+L1 Cache Access: 2.361 cycles
+L2 Cache Access: 2.199 cycles
+L3 Cache Access: 2.509 cycles
+RAM Access:      47.789 cycles
+
+Instruction Categories Performance:
+Basic Arithmetic Avg: 1.776 cycles
+Logical Operations Avg: 0.789 cycles
+SIMD Integer Avg: 1.185 cycles
+SIMD Float Avg: 1.184 cycles
+
+Notes:
+- Energy measurement requires MSR access (run as root)
+- Results may vary depending on system load and frequency scaling
+- Disable CPU frequency scaling for more consistent results
+- Cache measurements show memory hierarchy performance
